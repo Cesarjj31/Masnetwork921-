@@ -51,6 +51,7 @@ import {
   dayNames,
   nextOccurrence,
   imageUrl,
+  resolveFontFamily,
 } from '@/lib/station'
 import type { Station } from '@/lib/station'
 export const Route = createFileRoute('/')({ component: Home })
@@ -99,6 +100,7 @@ function Home() {
   const isPointerMovedRef = useRef(false)
 
   function handleLogoPointerDown(e: React.PointerEvent<HTMLImageElement>) {
+    if (!admin) return
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
     } catch {
@@ -553,8 +555,8 @@ function Home() {
     const s = station.sectionStyles?.[key]
     if (!s) return undefined
     const res: CSSProperties = {}
-    if (s.font) res.fontFamily = s.font
-    if (s.size) res.fontSize = `${s.size}em`
+    if (s.font) res.fontFamily = resolveFontFamily(s.font)
+    if (s.size) res.fontSize = `${s.size}px`
     if (s.weight) res.fontWeight = s.weight
     if (s.italic) res.fontStyle = 'italic'
     if (s.transform) res.textTransform = s.transform as CSSProperties['textTransform']
@@ -562,6 +564,18 @@ function Home() {
     if (s.textColor) res.color = s.textColor
     if (s.borderColor) res.borderColor = s.borderColor
     if (s.padding !== undefined) res.padding = `${s.padding}px 0`
+    return res
+  }
+
+  const textStyle = (key: string): CSSProperties => {
+    const s = station.sectionStyles?.[key]
+    const res: CSSProperties = {}
+    if (s?.font) res.fontFamily = resolveFontFamily(s.font)
+    if (s?.size) res.fontSize = `${s.size}px`
+    if (s?.weight) res.fontWeight = s.weight
+    if (s?.textColor) res.color = s.textColor
+    if (s?.italic) res.fontStyle = 'italic'
+    if (s?.transform) res.textTransform = s.transform as CSSProperties['textTransform']
     return res
   }
 
@@ -586,14 +600,25 @@ function Home() {
           <div className="eyebrow">
             <span className="live-dot" /> DESDE CIUDAD BOLÍVAR, VENEZUELA
           </div>
-          <h1>
+          <h1
+            style={{
+              ...textStyle('heroTitle'),
+              ...(station.sectionStyles?.player?.font && !station.sectionStyles?.heroTitle?.font
+                ? { fontFamily: resolveFontFamily(station.sectionStyles.player.font) }
+                : {}),
+            }}
+          >
             {station.heroTitle.split('\n').map((line, i) => (
-              <span className={i === 1 ? 'yellow' : ''} key={i}>
+              <span
+                className={i === 1 && !station.sectionStyles?.heroTitle?.textColor ? 'yellow' : ''}
+                key={i}
+                style={i === 1 && station.sectionStyles?.heroTitle?.textColor ? { color: station.sectionStyles.heroTitle.textColor } : undefined}
+              >
                 {line}
               </span>
             ))}
           </h1>
-          <p>{station.heroText}</p>
+          <p style={textStyle('heroText')}>{station.heroText}</p>
           <div className="hero-actions">
             <button
               className="button primary"
@@ -652,31 +677,36 @@ function Home() {
           <div className="vertical-text">MÁS MÚSICA. MÁS CONTIGO.</div>
           <div className="hero-logo-wrap">
             <img
-              className={`hero-logo movable-logo ${isDraggingLogo ? 'is-dragging' : ''} ${station.effects.logoPulse ? 'logo-pulse' : ''} ${station.effects.rotatingLogo ? 'rotating-logo' : ''}`}
+              className={`hero-logo ${admin ? 'movable-logo' : ''} ${isDraggingLogo ? 'is-dragging' : ''} ${station.effects.logoPulse ? 'logo-pulse' : ''} ${station.effects.rotatingLogo ? 'rotating-logo' : ''}`}
               src={imageUrl(station.logo, 650)}
               alt={`${station.name} ${station.frequency}`}
+              draggable={false}
               style={{
                 transform: `translate(${station.heroLogoX ?? 0}px, ${station.heroLogoY ?? 0}px) rotate(${station.heroLogoRotate ?? -9}deg) scale(${station.heroLogoScale ?? 1})`,
+                cursor: admin ? 'grab' : 'default',
+                touchAction: admin ? 'none' : 'auto',
               }}
               onPointerDown={(e) => {
                 startHold()
-                handleLogoPointerDown(e)
+                if (admin) handleLogoPointerDown(e)
               }}
-              onPointerMove={handleLogoPointerMove}
+              onPointerMove={admin ? handleLogoPointerMove : undefined}
               onPointerUp={(e) => {
                 endHold()
-                handleLogoPointerUp(e)
+                if (admin) handleLogoPointerUp(e)
               }}
               onPointerCancel={(e) => {
                 endHold()
-                handleLogoPointerUp(e)
+                if (admin) handleLogoPointerUp(e)
               }}
               onPointerLeave={endHold}
-              title="Arrastra para mover el logo en la portada"
+              title={admin ? 'Arrastra para mover el logo en la portada (Modo Administrador)' : undefined}
             />
-            <span className="logo-drag-hint">
-              <Move size={12} /> Arrastra para mover logo
-            </span>
+            {admin && (
+              <span className="logo-drag-hint">
+                <Move size={12} /> Arrastra para mover logo (Admin)
+              </span>
+            )}
           </div>
 
           <div className="frequency-label">
@@ -707,7 +737,7 @@ function Home() {
             <div className="eyebrow blue-label">
               {station.copy.highlightsEyebrow}
             </div>
-            <h2>{station.copy.highlightsHeading}</h2>
+            <h2 style={textStyle('carousel')}>{station.copy.highlightsHeading}</h2>
           </div>
           <div className="carousel-controls">
             <span>
@@ -742,7 +772,18 @@ function Home() {
         </div>
         <div className="highlights-grid">
           {shown ? (
-            <div className="feature-slide" key={shown.id}>
+            <div
+              className="feature-slide"
+              key={shown.id}
+              style={{
+                minHeight: `${station.carouselHeight || 340}px`,
+                height: `${station.carouselHeight || 340}px`,
+                overflow: 'hidden',
+                position: 'relative',
+                backgroundColor: station.sectionStyles?.carousel?.cardBackground,
+                borderColor: station.sectionStyles?.carousel?.cardBorderColor,
+              }}
+            >
               {shown.type === 'video' ? (
                 <video
                   src={
@@ -753,6 +794,15 @@ function Home() {
                   controls
                   playsInline
                   preload="metadata"
+                  style={{
+                    objectFit: (shown.fit || station.carouselFit || 'cover') as any,
+                    objectPosition: (shown.position || station.carouselPosition || 'center') as any,
+                    transform: `scale(${shown.zoom || station.carouselZoom || 1})`,
+                    opacity: station.carouselOpacity ?? 0.85,
+                    width: '100%',
+                    height: '100%',
+                    transition: 'transform 0.25s ease',
+                  }}
                   onPlay={() => {
                     audio.current?.pause()
                     setVideoPlaying(true)
@@ -768,13 +818,35 @@ function Home() {
                       : imageUrl(shown.url, 1000)
                   }
                   alt={shown.title}
+                  style={{
+                    objectFit: (shown.fit || station.carouselFit || 'cover') as any,
+                    objectPosition: (shown.position || station.carouselPosition || 'center') as any,
+                    transform: `scale(${shown.zoom || station.carouselZoom || 1})`,
+                    opacity: station.carouselOpacity ?? 0.85,
+                    width: '100%',
+                    height: '100%',
+                    transition: 'transform 0.25s ease',
+                  }}
                 />
               )}
               <div className="slide-caption">
                 <div>
                   <span className="eyebrow">SOMOS MÁS NETWORK</span>
-                  <h3>{shown.title}</h3>
-                  <p>{shown.subtitle}</p>
+                  <h3
+                    style={{
+                      fontFamily: resolveFontFamily(station.sectionStyles?.carousel?.font),
+                      color: station.sectionStyles?.carousel?.textColor,
+                    }}
+                  >
+                    {shown.title}
+                  </h3>
+                  <p
+                    style={{
+                      color: station.sectionStyles?.carousel?.textColor,
+                    }}
+                  >
+                    {shown.subtitle}
+                  </p>
                 </div>
                 {shown.link && (
                   <a
@@ -808,7 +880,13 @@ function Home() {
             </div>
           )}
           {station.visible.install !== false && (!installed || !station.flags.autoHideInstalled) && (
-            <div className="install-card">
+            <div
+              className="install-card"
+              style={{
+                backgroundColor: station.sectionStyles?.carousel?.cardBackground,
+                borderColor: station.sectionStyles?.carousel?.cardBorderColor,
+              }}
+            >
               <div className="install-card-top">
                 <span className="eyebrow">LLÉVANOS CONTIGO</span>
                 <ArrowUpRight size={23} />
@@ -850,7 +928,8 @@ function Home() {
         className="request-section"
         id="pedidos"
         style={{
-          backgroundColor: station.sectionStyles?.requests?.background,
+          backgroundColor: station.sectionStyles?.requests?.cardBackground || station.sectionStyles?.requests?.background,
+          borderColor: station.sectionStyles?.requests?.cardBorderColor || station.sectionStyles?.requests?.borderColor,
           color: station.sectionStyles?.requests?.textColor,
         }}
       >
@@ -861,8 +940,15 @@ function Home() {
         </div>
         <div>
           <div className="eyebrow">TU VOZ TAMBIÉN SUENA AQUÍ</div>
-          <h2>{station.copy.requestHeading}</h2>
-          <p>{station.copy.requestText}</p>
+          <h2 style={textStyle('requests')}>{station.copy.requestHeading}</h2>
+          <p
+            style={{
+              fontFamily: resolveFontFamily(station.sectionStyles?.requests?.font),
+              color: station.sectionStyles?.requests?.textColor,
+            }}
+          >
+            {station.copy.requestText}
+          </p>
         </div>
         <a
           className="button primary"
@@ -893,8 +979,16 @@ function Home() {
             <div className="eyebrow blue-label">
               BUENAS VOCES. GRANDES MOMENTOS.
             </div>
-            <h2>{station.copy.scheduleHeading}</h2>
-            <p className="section-description">{station.copy.scheduleText}</p>
+            <h2 style={textStyle('schedule')}>{station.copy.scheduleHeading}</h2>
+            <p
+              className="section-description"
+              style={{
+                fontFamily: resolveFontFamily(station.sectionStyles?.schedule?.font),
+                color: station.sectionStyles?.schedule?.textColor,
+              }}
+            >
+              {station.copy.scheduleText}
+            </p>
           </div>
           <div className="timezone">
             <Clock3 size={15} /> Hora de Venezuela (GMT−4)
@@ -945,6 +1039,10 @@ function Home() {
                   <article
                     id={`show-${s.id}`}
                     className={`show-row ${active ? 'current-show' : ''}`}
+                    style={{
+                      backgroundColor: station.sectionStyles?.schedule?.cardBackground,
+                      borderColor: station.sectionStyles?.schedule?.cardBorderColor,
+                    }}
                     onDoubleClick={() => {
                       if (station.effects.doubleFavorite)
                         setFavorites((f) =>
@@ -964,7 +1062,13 @@ function Home() {
                     </div>
                     <div className="show-details">
                       {day === 'all' && <small>{dayNames[s.day]}</small>}
-                      <h3>{s.name}</h3>
+                      <h3
+                        style={{
+                          fontFamily: resolveFontFamily(station.sectionStyles?.schedule?.font),
+                        }}
+                      >
+                        {s.name}
+                      </h3>
                       <p>{s.host}</p>
                       {active && (
                         <div className="show-progress">
@@ -1053,14 +1157,19 @@ function Home() {
           />
           <div>
             <div className="eyebrow blue-label">DE AQUÍ. CONTIGO.</div>
-            <h2>
+            <h2 style={textStyle('info')}>
               {station.copy.infoHeading.split('\n').map((line, i) => (
                 <span key={i} style={{ display: 'block' }}>
                   {line}
                 </span>
               ))}
             </h2>
-            <p>
+            <p
+              style={{
+                fontFamily: resolveFontFamily(station.sectionStyles?.info?.font),
+                color: station.sectionStyles?.info?.textColor,
+              }}
+            >
               Somos {station.name} {station.frequency}.<br />
               {station.copy.infoText}
             </p>
@@ -1088,7 +1197,7 @@ function Home() {
       >
         <div>
           <span className="eyebrow">LA CONVERSACIÓN SIGUE</span>
-          <h2>{station.copy.socialsHeading}</h2>
+          <h2 style={textStyle('socials')}>{station.copy.socialsHeading}</h2>
         </div>
         {socialBar()}
         <a
@@ -1156,10 +1265,12 @@ function Home() {
         {
           '--blue': station.blue,
           '--yellow': station.yellow,
+          '--page-bg': station.pageBackground || '#f5f7fb',
           '--card-radius': `${station.radius}px`,
           '--spacing': station.spacing,
-          fontFamily: `'${station.font}', sans-serif`,
+          fontFamily: resolveFontFamily(station.font) || `'${station.font}', sans-serif`,
           fontSize: station.fontSize,
+          backgroundColor: station.pageBackground || '#f5f7fb',
         } as CSSProperties
       }
     >
@@ -1223,6 +1334,8 @@ function Home() {
       {station.visible.header !== false && (
         <header
           style={{
+            fontFamily: resolveFontFamily(station.sectionStyles?.header?.font),
+            fontSize: station.sectionStyles?.header?.size ? `${station.sectionStyles.header.size}px` : undefined,
             backgroundColor: station.sectionStyles?.header?.background,
             color: station.sectionStyles?.header?.textColor,
             borderColor: station.sectionStyles?.header?.borderColor,
@@ -1318,9 +1431,11 @@ function Home() {
           className={`ticker ticker-${station.tickerBorder}`}
           style={{
             height: station.tickerHeight,
-            fontSize: station.tickerFont,
+            fontSize: station.sectionStyles?.ticker?.size ? `${station.sectionStyles.ticker.size}px` : station.tickerFont,
+            fontFamily: resolveFontFamily(station.sectionStyles?.ticker?.font),
             backgroundColor: station.sectionStyles?.ticker?.background,
             color: station.sectionStyles?.ticker?.textColor,
+            fontWeight: station.sectionStyles?.ticker?.weight,
           }}
 
           onClick={() =>
@@ -1375,7 +1490,13 @@ function Home() {
 
           <img src={imageUrl(station.logo, 650)} alt="" />
           <div>
-            <strong>
+            <strong
+              style={{
+                fontFamily: resolveFontFamily(station.sectionStyles?.stickyPlayer?.font),
+                fontSize: station.sectionStyles?.stickyPlayer?.size ? `${station.sectionStyles.stickyPlayer.size}px` : undefined,
+                color: station.sectionStyles?.stickyPlayer?.textColor,
+              }}
+            >
               {station.name} <span>{station.frequency}</span>
             </strong>
             <small>
@@ -1611,10 +1732,15 @@ function Home() {
       {admin && (
         <AdminPanel
           open={admin}
-          onClose={() => setAdmin(false)}
-          station={station}
+          onClose={() => {
+            setStation(settingsRef.current)
+            setAdmin(false)
+          }}
+          station={settingsRef.current}
+          onLiveChange={(s) => setStation(s)}
           onSaved={(s) => {
             setStation(s)
+            settingsRef.current = s
             etag.current = ''
             if (s.effects.adminNotice)
               toast.info('La emisora acaba de actualizarse')
@@ -1622,7 +1748,18 @@ function Home() {
         />
       )}
       {cinema && (
-        <div className="cinema">
+        <div
+          className={`cinema ${station.cinema.glow ? 'cinema-glow-effect' : ''}`}
+          style={{
+            fontFamily: station.cinema.font ? `'${station.cinema.font}', sans-serif` : undefined,
+            color: station.cinema.textColor || '#ffffff',
+          }}
+        >
+          {station.cinema.particles && (
+            <div className="visual-atmosphere" aria-hidden="true" style={{ opacity: 0.4 }}>
+              <i /><i /><i /><i /><i /><i />
+            </div>
+          )}
           <button
             className="cinema-close icon-button"
             onClick={() => {
@@ -1634,27 +1771,51 @@ function Home() {
             <X size={28} />
           </button>
           {station.cinema.logo && (
-            <img src={imageUrl(station.logo, 650)} alt={station.name} />
+            <img
+              src={imageUrl(station.cinema.logoUrl || station.logo, 650)}
+              alt={station.cinema.title || station.name}
+              className={station.effects.logoPulse ? 'logo-pulse' : ''}
+            />
           )}
-          <h2>
-            {station.name} <span>{station.frequency}</span>
+          <h2 style={{ color: station.cinema.textColor || '#ffffff' }}>
+            {station.cinema.title || (
+              <>
+                {station.name} <span style={{ color: station.cinema.accentColor || station.yellow }}>{station.frequency}</span>
+              </>
+            )}
           </h2>
-          {station.cinema.ticker && <p>{station.ticker}</p>}
+          {station.cinema.subtitle && (
+            <p
+              className="cinema-subtitle"
+              style={{
+                color: station.cinema.accentColor || station.yellow,
+                fontSize: '1.25rem',
+                margin: '-12px 0 6px 0',
+                fontWeight: 600,
+              }}
+            >
+              {station.cinema.subtitle}
+            </p>
+          )}
+          {station.cinema.ticker && <p>{station.cinema.tickerText || station.ticker}</p>}
           {station.cinema.player && (
             <>
               {playButton()}
               <strong>{current?.name || station.slogan}</strong>
-              <div className={`waveform ${playing ? 'is-playing' : ''}`}>
-                {Array.from({ length: 20 }, (_, i) => (
-                  <i
-                    key={i}
-                    style={{
-                      height: `${10 + (i % 5) * 8}px`,
-                      animationDelay: `${i * 0.1}s`,
-                    }}
-                  />
-                ))}
-              </div>
+              {station.cinema.equalizer !== false && (
+                <div className={`waveform ${playing ? 'is-playing' : ''}`}>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <i
+                      key={i}
+                      style={{
+                        height: `${10 + (i % 6) * 9}px`,
+                        animationDelay: `${i * 0.08}s`,
+                        background: station.cinema.accentColor || station.yellow,
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </>
           )}
           {station.cinema.socials && socialBar()}
@@ -1667,23 +1828,27 @@ function Home() {
   )
 }
 function ContactInfo({ station }: { station: Station }) {
+  const cardStyle = {
+    backgroundColor: station.sectionStyles?.info?.cardBackground,
+    borderColor: station.sectionStyles?.info?.cardBorderColor,
+  }
   return (
     <div className="contact-grid">
-      <div>
+      <div style={cardStyle}>
         <MapPin size={19} />
         <span>
           <small>DESDE NUESTRA CIUDAD</small>
           {station.city}
         </span>
       </div>
-      <div>
+      <div style={cardStyle}>
         <Radio size={19} />
         <span>
           <small>DIRECTOR</small>
           {station.director}
         </span>
       </div>
-      <a href={`mailto:${station.email}`}>
+      <a href={`mailto:${station.email}`} style={cardStyle}>
         <Mail size={19} />
         <span>
           <small>ESCRÍBENOS</small>
@@ -1694,6 +1859,7 @@ function ContactInfo({ station }: { station: Station }) {
         href={`https://wa.me/${station.whatsapp}`}
         target="_blank"
         rel="noopener noreferrer"
+        style={cardStyle}
       >
         <SocialIcon name="WhatsApp" size={19} />
         <span>

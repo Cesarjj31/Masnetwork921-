@@ -14,7 +14,65 @@ export type Slide = {
   url: string
   type: string
   link: string
+  fit?: 'cover' | 'contain' | 'fill'
+  position?: 'center' | 'top' | 'bottom' | 'left' | 'right'
+  zoom?: number
 }
+export type FontOption = {
+  name: string
+  family: string
+  category: 'Modernas' | 'Display' | 'Futuristas' | 'Urbanas' | 'Clásicas'
+}
+
+export const availableFonts: FontOption[] = [
+  { name: 'Neuropol X (Especial)', family: "'Neuropol X', 'Orbitron', 'Audiowide', sans-serif", category: 'Futuristas' },
+  { name: 'Outfit', family: "'Outfit', sans-serif", category: 'Modernas' },
+  { name: 'Barlow Condensed', family: "'Barlow Condensed', sans-serif", category: 'Display' },
+  { name: 'Orbitron', family: "'Orbitron', sans-serif", category: 'Futuristas' },
+  { name: 'Rajdhani', family: "'Rajdhani', sans-serif", category: 'Futuristas' },
+  { name: 'Audiowide', family: "'Audiowide', sans-serif", category: 'Futuristas' },
+  { name: 'Oxanium', family: "'Oxanium', sans-serif", category: 'Futuristas' },
+  { name: 'Michroma', family: "'Michroma', sans-serif", category: 'Futuristas' },
+  { name: 'Goldman', family: "'Goldman', sans-serif", category: 'Futuristas' },
+  { name: 'Montserrat', family: "'Montserrat', sans-serif", category: 'Modernas' },
+  { name: 'Poppins', family: "'Poppins', sans-serif", category: 'Modernas' },
+  { name: 'Inter', family: "'Inter', sans-serif", category: 'Modernas' },
+  { name: 'Roboto', family: "'Roboto', sans-serif", category: 'Modernas' },
+  { name: 'Rubik', family: "'Rubik', sans-serif", category: 'Modernas' },
+  { name: 'Work Sans', family: "'Work Sans', sans-serif", category: 'Modernas' },
+  { name: 'Space Grotesk', family: "'Space Grotesk', sans-serif", category: 'Modernas' },
+  { name: 'Raleway', family: "'Raleway', sans-serif", category: 'Modernas' },
+  { name: 'Bebas Neue', family: "'Bebas Neue', sans-serif", category: 'Display' },
+  { name: 'Anton', family: "'Anton', sans-serif", category: 'Display' },
+  { name: 'Oswald', family: "'Oswald', sans-serif", category: 'Display' },
+  { name: 'Russo One', family: "'Russo One', sans-serif", category: 'Display' },
+  { name: 'Archivo Black', family: "'Archivo Black', sans-serif", category: 'Display' },
+  { name: 'Righteous', family: "'Righteous', sans-serif", category: 'Display' },
+  { name: 'Teko', family: "'Teko', sans-serif", category: 'Display' },
+  { name: 'Kanit', family: "'Kanit', sans-serif", category: 'Urbanas' },
+  { name: 'Exo 2', family: "'Exo 2', sans-serif", category: 'Urbanas' },
+  { name: 'Changa', family: "'Changa', sans-serif", category: 'Urbanas' },
+  { name: 'Syne', family: "'Syne', sans-serif", category: 'Urbanas' },
+  { name: 'Cinzel', family: "'Cinzel', serif", category: 'Clásicas' },
+  { name: 'Playfair Display', family: "'Playfair Display', serif", category: 'Clásicas' },
+  { name: 'Georgia', family: "Georgia, serif", category: 'Clásicas' },
+  { name: 'Verdana', family: "Verdana, sans-serif", category: 'Clásicas' },
+]
+
+export function resolveFontFamily(fontName?: string): string | undefined {
+  if (!fontName) return undefined
+  const clean = fontName.trim()
+  const match = availableFonts.find(
+    (f) =>
+      f.name.toLowerCase() === clean.toLowerCase() ||
+      clean.toLowerCase().includes(f.name.toLowerCase()) ||
+      f.family.toLowerCase().includes(clean.toLowerCase())
+  )
+  if (match) return match.family
+  if (clean.includes(',') || clean.includes("'") || clean.includes('"')) return clean
+  return `'${clean}', sans-serif`
+}
+
 export type Station = typeof defaults
 export const defaultShows: Show[] = [
   [
@@ -99,10 +157,16 @@ export const defaults = {
   promo: '¡La radio que va contigo!',
   blue: '#072a69',
   yellow: '#ffdc18',
+  pageBackground: '#f5f7fb',
   font: 'Outfit',
   fontSize: 16,
   radius: 20,
   spacing: 1,
+  carouselFit: 'cover' as 'cover' | 'contain' | 'fill',
+  carouselPosition: 'center' as 'center' | 'top' | 'bottom' | 'left' | 'right',
+  carouselZoom: 1,
+  carouselHeight: 340,
+  carouselOpacity: 0.85,
   tickerSpeed: 28,
   tickerHeight: 34,
   tickerFont: 11,
@@ -175,6 +239,16 @@ export const defaults = {
     player: true,
     socials: true,
     notes: true,
+    title: 'Más Network 92.1 FM',
+    subtitle: '¡Medio Palo! • La radio que te acompaña',
+    tickerText: 'MÁS NETWORK 92.1 FM • DESDE CIUDAD BOLÍVAR PARA EL MUNDO',
+    logoUrl: '/img/logo.png',
+    equalizer: true,
+    glow: true,
+    particles: true,
+    font: 'Neuropol X',
+    textColor: '#ffffff',
+    accentColor: '#ffdc18',
   },
   sectionStyles: {} as Record<
     string,
@@ -185,6 +259,8 @@ export const defaults = {
       italic?: boolean
       transform?: string
       background?: string
+      cardBackground?: string
+      cardBorderColor?: string
       textColor?: string
       accentColor?: string
       borderColor?: string
